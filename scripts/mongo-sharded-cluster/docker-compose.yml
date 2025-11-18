@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+
+  # -------------------------
+  # Config Server (Standalone)
+  # -------------------------
+  config:
+    image: mongo:6.0
+    container_name: config
+    command: mongod --configsvr --replSet config --port 27019 --bind_ip_all
+    volumes:
+      - ./data/config:/data/db
+    networks:
+      - mongo-net
+
+  # -------------------------
+  # Single Shard (Standalone)
+  # -------------------------
+  shard1:
+    image: mongo:6.0
+    container_name: shard1
+    command: mongod --shardsvr --replSet shard1 --port 27018 --bind_ip_all
+    volumes:
+      - ./data/shard1:/data/db
+    networks:
+      - mongo-net
+
+  # -------------------------
+  # Mongos Router
+  # -------------------------
+  mongos:
+    image: mongo:6.0
+    container_name: mongos
+    depends_on:
+      - config
+      - shard1
+    command: >
+      mongos
+      --configdb config/config:27019
+      --port 27017
+      --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - mongo-net
+
+networks:
+  mongo-net:
+    driver: bridge
